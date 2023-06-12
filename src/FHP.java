@@ -4,20 +4,42 @@ import javax.swing.* ;
 
 public class FHP {
 
-    final static int NX = 80, NY = 60 ;  // Lattice dimensions
+    final static int NX = 100, NY = 100 ;  // Lattice dimensions
     final static int q = 6 ;  // population
      
-    final static int NITER = 1000 ;
+    final static int NITER = 125 ;
     final static int DELAY = 50 ;
 
     final static double DENSITY = 1.0 ;  // initial state, between 0 and 1.0.
+
+    final static int CELL_SIZE = 1;
+    static int HEX_W = 8 * CELL_SIZE;
+    static int HEX_H = 9 * CELL_SIZE;
+    static int HEX_HH = 6 * CELL_SIZE;
+    static int HEX_HW = 4 * CELL_SIZE;
+
+    static int [][] hex_lines = {
+        {0,3,8,3},
+        {1,2,6,5},
+        {2,1,4,7},
+        {3,0,2,9}
+    };
+
 
     static Display display = new Display() ;
 
     static boolean [] [] [] fin = new boolean [NX] [NY] [q] ;
     static boolean [] [] [] fout = new boolean [NX] [NY] [q] ;
 
+    static int cols = 7;
+    static int max = 255;
+    static Color [] greys = new Color [cols];
+
     public static void main(String args []) throws Exception {
+        for(int c = 0; c < cols ; c++) { 
+            int gs = 255-((max/(cols-1)) * c);
+            greys[c] = new Color(gs,gs,gs);
+        }
 
         // initialize - populate a subblock of grid
         for(int i = 0; i < NX/4 ; i++) { 
@@ -212,12 +234,8 @@ public class FHP {
     
     static class Display extends JPanel {
 
-        static final double ROW_HEIGHT = Math.sqrt(3) / 2 ;
-
-        int displaySizeX = CELL_SIZE * NX ;
-        int displaySizeY = (int) (ROW_HEIGHT * CELL_SIZE * NY + 0.5) ;
-
-        final static int CELL_SIZE = 14 ; 
+        int displaySizeX = HEX_W * NX ;
+        int displaySizeY = (int) (HEX_HH * NY + 0.5);
 
         public static final int ARROW_START = 2 ;
         public static final int ARROW_END   = 7 ;
@@ -241,95 +259,48 @@ public class FHP {
             frame.setVisible(true);
         }
 
+        public static int No_setbits(int n) {
+            int cnt = 0;
+            while (n != 0) {
+                cnt++;
+                n = n & (n - 1); // unsets the rightmost set bit.
+            }
+            return cnt;
+        }
+
+        public void draw_hex(Graphics g, int n, int x, int y){
+            g.setColor(greys[n]);
+            // Draw grid pos
+            // get top left
+            int originX = ((HEX_W * x + HEX_HW * y) % displaySizeX );
+            int originY = y * HEX_HH;
+            
+            for (int i = 0; i < hex_lines.length; i += 1){
+                g.fillRect(
+                    hex_lines[i][0] * CELL_SIZE + originX, 
+                    hex_lines[i][1] * CELL_SIZE + originY, 
+                    hex_lines[i][2] * CELL_SIZE, 
+                    hex_lines[i][3] * CELL_SIZE
+                );    
+            }
+
+        }
+
         public void paintComponent(Graphics g) {
-
             g.setColor(Color.WHITE) ;
-            g.fillRect(0, 0, CELL_SIZE * NX, CELL_SIZE * NY) ;
+            //g.fillRect(0, 0, CELL_SIZE * NX, CELL_SIZE * NY) ;
 
-            int [] tri_x = new int [3], tri_y = new int [3] ;
             for(int i = 0 ; i < NX ; i++) {
                 for(int j = 0 ; j < NY ; j++) {
                     //boolean [] f_ij = fout [i] [j] ;
                     boolean [] f_ij = fin [i] [j] ;
-                    int originX = 
-                      (int) (CELL_SIZE * i + 0.5 * CELL_SIZE * j +
-                             CELL_SIZE/2 + 0.5) % displaySizeX;
-                    int originY =
-                      (int) (ROW_HEIGHT * (CELL_SIZE * j + CELL_SIZE/2) + 0.5) ;
-
-                    g.setColor(Color.PINK) ;
-                    //g.setColor(Color.LIGHT_GRAY) ;
-                    g.fillOval(originX - 2, originY - 2, 4, 4) ;
-
-                    g.setColor(Color.BLUE) ;
-                    if(f_ij [0]) {
-                        tri_x [0] = originX - ARROW_START ;
-                        tri_x [1] = originX - ARROW_START ;
-                        tri_x [2] = originX - ARROW_END ;
-                        tri_y [0] = originY - ARROW_WIDE ;
-                        tri_y [1] = originY + ARROW_WIDE ;
-                        tri_y [2] = originY ;
-                        //g.setColor(Color.BLUE) ;
-                        g.fillPolygon(tri_x, tri_y, 3) ;
+                    int n = 0;
+                    for (int k = 0; k < f_ij.length; k += 1){
+                        if (f_ij[k]) {
+                            n += 1;
+                        }
                     }
-                    if(f_ij [1]) {
-                        tri_x [0] = originX + ARROW_START ;
-                        tri_x [1] = originX + ARROW_START ;
-                        tri_x [2] = originX + ARROW_END ;
-                        tri_y [0] = originY - ARROW_WIDE ;
-                        tri_y [1] = originY + ARROW_WIDE ;
-                        tri_y [2] = originY ;
-                        //g.setColor(Color.RED) ;
-                        g.fillPolygon(tri_x, tri_y, 3) ;
-                    }
-                    if(f_ij [2]) {
-                        tri_x [0] = originX - DIAG_X_0 ;
-                        tri_x [1] = originX - DIAG_X_1 ;
-                        tri_x [2] = originX - DIAG_X_2 ;
-                        tri_y [0] = originY - DIAG_Y_0 ;
-                        tri_y [1] = originY - DIAG_Y_1 ;
-                        tri_y [2] = originY - DIAG_Y_2 ;
-                        //g.setColor(Color.ORANGE) ;
-                        g.fillPolygon(tri_x, tri_y, 3) ;
-                    }
-                    if(f_ij [3]) {
-                        tri_x [0] = originX + DIAG_X_0 ;
-                        tri_x [1] = originX + DIAG_X_1 ;
-                        tri_x [2] = originX + DIAG_X_2 ;
-                        tri_y [0] = originY + DIAG_Y_0 ;
-                        tri_y [1] = originY + DIAG_Y_1 ;
-                        tri_y [2] = originY + DIAG_Y_2 ;
-/*
-                        tri_x [0] = originX + 1 - 2 ;
-                        tri_x [1] = originX + 1 + 2 ;
-                        tri_x [2] = originX + 4 ;
-                        tri_y [0] = originY + 2 + 2 ;
-                        tri_y [1] = originY + 2 - 2 ;
-                        tri_y [2] = originY + 6 ;
-*/
-                        //g.setColor(Color.MAGENTA) ;
-                        g.fillPolygon(tri_x, tri_y, 3) ;
-                    }
-                    if(f_ij [4]) {
-                        tri_x [0] = originX + DIAG_X_0 ;
-                        tri_x [1] = originX + DIAG_X_1 ;
-                        tri_x [2] = originX + DIAG_X_2 ;
-                        tri_y [0] = originY - DIAG_Y_0 ;
-                        tri_y [1] = originY - DIAG_Y_1 ;
-                        tri_y [2] = originY - DIAG_Y_2 ;
-                        //g.setColor(Color.GREEN) ;
-                        g.fillPolygon(tri_x, tri_y, 3) ;
-                    }
-                    if(f_ij [5]) {
-                        tri_x [0] = originX - DIAG_X_0 ;
-                        tri_x [1] = originX - DIAG_X_1 ;
-                        tri_x [2] = originX - DIAG_X_2 ;
-                        tri_y [0] = originY + DIAG_Y_0 ;
-                        tri_y [1] = originY + DIAG_Y_1 ;
-                        tri_y [2] = originY + DIAG_Y_2 ;
-                        //g.setColor(Color.YELLOW) ;
-                        g.fillPolygon(tri_x, tri_y, 3) ;
-                    }
+                    draw_hex(g, n, i, j);
                 }
             } 
         }
